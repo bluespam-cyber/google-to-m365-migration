@@ -1,0 +1,29 @@
+# Environment files
+.env
+*.env
+
+# Google service account keys (SENSITIVE - never commit)
+*gsuite-migration-key*.json
+*service-account*.json
+*service_account*.json
+
+# Migration CSVs (may contain PII)
+*migration-users*.csv
+*GoogleMigrationUsers*.csv
+*AutoMigrationUsers*.csv
+
+# PowerShell
+*.ps1.bak
+*.psm1.bak
+
+# Logs
+*.log
+*.err
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
