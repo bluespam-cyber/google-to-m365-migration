@@ -106,7 +106,7 @@ The key is stored in a secure location with restricted ACLs. **Keep this path** 
 
 ## 4. Migration Controller
 
-> **Quick interactive path:** just run `.\Run-Migration.ps1` with no arguments — it auto-finds your CSV and service-account key, detects your admin email and routing domain, and asks only for what it can't discover.
+> **Quick interactive path:** just run `.\Run-Migration.ps1` with no arguments — it auto-finds your CSV and service-account key, then asks only for your Google admin email and routing domain.
 
 ### 4.1 Run a Preflight (read-only)
 
@@ -154,18 +154,17 @@ Only after the batch reaches **Synced** status:
 
 ## 5. CSV Format
 
-The migration CSV requires three columns:
+The migration CSV requires two columns:
 
 | Column | Meaning |
 |---|---|
-| `EmailAddress` | The M365 target email address |
-| `TargetMailbox` | The target mailbox (usually the same as `EmailAddress`) |
-| `MailboxType` | `Primary` or `Archive` |
+| `EmailAddress` | The Microsoft 365 target email address |
+| `Username` | The source Google Workspace address (optional — defaults to `EmailAddress` if omitted) |
 
 ```csv
-EmailAddress,TargetMailbox,MailboxType
-john.doe@contoso.com,john.doe@contoso.com,Primary
-jane.smith@contoso.com,jane.smith@contoso.com,Primary
+EmailAddress,Username
+john.doe@contoso.com,john.doe@gmail.com
+jane.smith@contoso.com,jane.smith@gmail.com
 ```
 
 See `examples/migration-users.csv` for a sample. The script auto-detects a file named `migration-users.csv` in the current folder, `examples/`, `config/`, your Downloads, or Documents.

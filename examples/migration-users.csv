@@ -1,6 +1,6 @@
-EmailAddress,TargetMailbox,MailboxType
-john.doe@contoso.com,john.doe@contoso.com,Primary
-jane.smith@contoso.com,jane.smith@contoso.com,Primary
-bob.johnson@contoso.com,bob.johnson@contoso.com,Primary
-alice.williams@contoso.com,alice.williams@contoso.com,Primary
-charlie.brown@contoso.com,charlie.brown@contoso.com,Primary
+EmailAddress,Username
+john.doe@contoso.com,john.doe@gmail.com
+jane.smith@contoso.com,jane.smith@gmail.com
+bob.johnson@contoso.com,bob.johnson@gmail.com
+alice.williams@contoso.com,alice.williams@gmail.com
+charlie.brown@contoso.com,charlie.brown@gmail.com

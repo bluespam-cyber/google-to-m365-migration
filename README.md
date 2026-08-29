@@ -38,7 +38,7 @@ https://github.com/bluespam-cyber/google-to-m365-migration/archive/refs/heads/ma
 Run with **no arguments** and the script walks you through everything. It **auto-detects** what it can and **asks only for what it can't**:
 
 - **Bootstrap** auto-detects: gcloud, your active Google account, GCP projects, existing service accounts
-- **Migration** auto-detects: your CSV, your service-account key, your Google admin email (from gcloud), your routing domain (from Exchange Online)
+- **Migration** auto-detects: your CSV and your service-account key; asks only for your Google admin email and routing domain
 
 ```powershell
 # Google Cloud prep — interactive menu (pick a mode, answer only what's needed)
