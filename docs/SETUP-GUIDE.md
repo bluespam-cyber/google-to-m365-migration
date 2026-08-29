@@ -53,6 +53,8 @@ New-MailUser -Name "John Doe" -ExternalEmailAddress "john.doe@gsuite.com" -Prima
 
 ## 3. Google Cloud Preparation (Bootstrap)
 
+> **Quick interactive path:** just run `.\Run-Bootstrap.ps1` with no arguments — it shows a menu, auto-detects your gcloud setup and projects, and asks only for what it can't find.
+
 ### 3.1 Inspect Your Environment (read-only)
 
 ```powershell
@@ -104,6 +106,8 @@ The key is stored in a secure location with restricted ACLs. **Keep this path** 
 
 ## 4. Migration Controller
 
+> **Quick interactive path:** just run `.\Run-Migration.ps1` with no arguments — it auto-finds your CSV and service-account key, detects your admin email and routing domain, and asks only for what it can't discover.
+
 ### 4.1 Run a Preflight (read-only)
 
 ```powershell
@@ -150,15 +154,21 @@ Only after the batch reaches **Synced** status:
 
 ## 5. CSV Format
 
-The migration CSV uses `EmailAddress` (M365 target) and `Username` (Google source):
+The migration CSV requires three columns:
+
+| Column | Meaning |
+|---|---|
+| `EmailAddress` | The M365 target email address |
+| `TargetMailbox` | The target mailbox (usually the same as `EmailAddress`) |
+| `MailboxType` | `Primary` or `Archive` |
 
 ```csv
-EmailAddress,Username
-john.doe@contoso.com,john.doe@gsuite.com
-jane.smith@contoso.com,jane.smith@gsuite.com
+EmailAddress,TargetMailbox,MailboxType
+john.doe@contoso.com,john.doe@contoso.com,Primary
+jane.smith@contoso.com,jane.smith@contoso.com,Primary
 ```
 
-See `examples/migration-users.csv` for a sample.
+See `examples/migration-users.csv` for a sample. The script auto-detects a file named `migration-users.csv` in the current folder, `examples/`, `config/`, your Downloads, or Documents.
 
 ---
 

@@ -33,7 +33,26 @@ https://github.com/bluespam-cyber/google-to-m365-migration/archive/refs/heads/ma
 
 ## 🚀 Run the scripts
 
-The launchers **automatically find the scripts** — no `cd` needed, no full paths. Just run them from the folder where you saved them.
+### ✨ Fully interactive (recommended) — just run it
+
+Run with **no arguments** and the script walks you through everything. It **auto-detects** what it can and **asks only for what it can't**:
+
+- **Bootstrap** auto-detects: gcloud, your active Google account, GCP projects, existing service accounts
+- **Migration** auto-detects: your CSV, your service-account key, your Google admin email (from gcloud), your routing domain (from Exchange Online)
+
+```powershell
+# Google Cloud prep — interactive menu (pick a mode, answer only what's needed)
+.\Run-Bootstrap.ps1
+
+# Migration — interactive menu (auto-finds CSV + key, asks only for admin email & routing domain)
+.\Run-Migration.ps1
+```
+
+> **What it will ask you:** only the things it genuinely cannot discover — e.g. your GCP project ID (if you have several), your Google admin email (if gcloud isn't signed in), your routing domain (if Exchange can't be reached), and a **Y/n** confirmation before any mutating step. Everything else is found automatically.
+
+### Explicit mode (for automation / RMM)
+
+Every mode can also be called directly with parameters — perfect for scheduled or unattended runs:
 
 ### Google Cloud prep (bootstrap)
 
@@ -77,6 +96,8 @@ The launchers **automatically find the scripts** — no `cd` needed, no full pat
 ```
 
 > **How auto-location works:** each launcher uses `$PSScriptRoot` to locate the `scripts/` folder relative to itself, then passes all your arguments through unchanged. Keep the launcher and its matching script in the same folder.
+>
+> **Unattended runs:** add `-NonInteractive` to fail fast with a report instead of prompting (for RMM/SYSTEM).
 
 ---
 
@@ -92,8 +113,8 @@ This toolkit is split into **two controlled scripts** that default to **read-onl
 ### Safety-first design
 - **Never** auto-creates a GCP project or service-account key without explicit `-Approve*` flags
 - **Never** runs browser authentication automatically
-- **Never** selects a routing domain automatically
-- Every mutation requires `ShouldProcess` confirmation
+- Auto-detected values (project, CSV, key, admin email, routing domain) are always shown and confirmed before use
+- Every mutation requires `ShouldProcess` confirmation (or an interactive **Y/n** prompt)
 - Blocking findings halt further action
 
 ---

@@ -1,6 +1,6 @@
-EmailAddress,Username
-john.doe@contoso.com,john.doe@gsuite.com
-jane.smith@contoso.com,jane.smith@gsuite.com
-bob.johnson@contoso.com,bob.johnson@gsuite.com
-alice.williams@contoso.com,alice.williams@gsuite.com
-charlie.brown@contoso.com,charlie.brown@gsuite.com
+EmailAddress,TargetMailbox,MailboxType
+john.doe@contoso.com,john.doe@contoso.com,Primary
+jane.smith@contoso.com,jane.smith@contoso.com,Primary
+bob.johnson@contoso.com,bob.johnson@contoso.com,Primary
+alice.williams@contoso.com,alice.williams@contoso.com,Primary
+charlie.brown@contoso.com,charlie.brown@contoso.com,Primary
