@@ -12,10 +12,13 @@
     .\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv
 
 .EXAMPLE
-    .\Run-Migration.ps1 -Mode CreateEndpoint -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -ApproveGooglePrerequisites
+    .\Run-Migration.ps1 -Mode CreateEndpoint -KeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com
 
 .EXAMPLE
-    .\Run-Migration.ps1 -Mode CreateBatch -CsvPath .\examples\migration-users.csv -TargetDeliveryDomain o365.contoso.com -ApproveGooglePrerequisites
+    .\Run-Migration.ps1 -Mode CreateBatch -CsvPath .\examples\migration-users.csv -TargetDeliveryDomain o365.contoso.com
+
+.EXAMPLE
+    .\Run-Migration.ps1 -Mode Complete -ApproveCutover
 #>
 param()
 

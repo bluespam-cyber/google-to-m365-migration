@@ -1,10 +1,10 @@
 # Troubleshooting Guide
 
-Common issues and fixes for the Google Workspace → Microsoft 365 migration.
+Common issues and fixes for the Google Workspace → Microsoft 365 migration controller.
 
 ---
 
-## 1. "Failed to create Migration Endpoint"
+## 1. "Failed to create Migration Endpoint" (401 Unauthorized)
 
 **Error:**
 ```
@@ -12,14 +12,45 @@ Failed to create Migration Endpoint: The remote server returned an error: (401) 
 ```
 
 **Causes & Fixes:**
-- **Domain-Wide Delegation not authorized** → Go to admin.google.com → Security → API controls → Domain-wide delegation → verify the Client ID is added with correct scopes
-- **Wrong Client ID** → The Client ID is the `client_id` field in your JSON key (long numeric string), NOT `client_email`
-- **Service account key expired** → Generate a new key with the bootstrap script: `.\Run-Bootstrap.ps1 -Mode CreateServiceAccountKey -ProjectId <project> -ApproveKeyCreation`
+- **Domain-Wide Delegation not authorized** → admin.google.com → Security → Access and data control → API controls → Manage Domain Wide Delegation → verify the numeric Client ID is added with the exact five scopes
+- **Wrong Client ID** → The Client ID is the **numeric Unique ID** (also the `client_id` field in the JSON key), NOT `client_email`
+- **Service account key expired** → Generate a new JSON key in the Google Cloud console (service account → Keys → Add key)
 - **Wrong admin email** → Use the Google Workspace **Super Admin** email, not a regular user
 
 ---
 
-## 2. "Connection attempt failed" (Exchange Online)
+## 2. "invalid_grant" during the Google delegation test
+
+**Error:**
+```
+Google delegation test failed: invalid_grant
+```
+
+**Causes & Fixes:**
+- **Clock skew** → The JWT is time-sensitive. Verify the machine clock is accurate (NTP sync).
+- **Key file corrupted or wrong** → Confirm `-KeyPath` points at the JSON key you downloaded (not a renamed copy).
+- **Service account deleted** → Recreate the service account and key in the Google Cloud console.
+
+---
+
+## 3. "unauthorized_client" / "access_denied" — delegation not ready
+
+**Error:**
+```
+Google delegation test failed: unauthorized_client
+```
+
+**Causes & Fixes:**
+- **Delegation not yet propagated** → Domain-wide delegation can take minutes, occasionally up to 24 hours. The script automatically **waits and retries for up to 30 minutes** (backoff 20s → 60s) before giving up.
+- **Wrong Client ID used in Admin Console** → Re-check the numeric Unique ID (step 5 of the guide).
+- **Scopes mismatch** → The scopes in Admin Console must match this exact line, no spaces:
+  ```
+  https://mail.google.com/,https://www.googleapis.com/auth/calendar,https://www.google.com/m8/feeds/,https://www.googleapis.com/auth/gmail.settings.sharing,https://www.googleapis.com/auth/contacts
+  ```
+
+---
+
+## 4. "Connection attempt failed" (Exchange Online)
 
 **Error:**
 ```
@@ -29,87 +60,92 @@ Connection attempt 1 failed: The user name or password is incorrect
 **Causes & Fixes:**
 - **Wrong credentials** → Verify your M365 admin credentials
 - **MFA not completed** → Complete the multi-factor authentication prompt
-- **Module not installed** → Run with `-InstallExchangeModule` or install manually
+- **Module not installed** → The script auto-installs ExchangeOnlineManagement (TLS 1.2, NuGet, PSGallery restore, three strategies). If auto-install fails, install manually:
+  ```powershell
+  Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser -Force
+  ```
 
 ---
 
-## 3. "gcloud was not found"
+## 5. "A window handle must be configured" (headless run)
 
 **Error:**
 ```
-[FAIL] Google Cloud CLI - gcloud was not found.
+Error Acquiring Token: A window handle must be configured for the UI
 ```
 
-**Fix:** Run the bootstrap script with `-Mode InstallSdk` to open the official installer, or install the Google Cloud SDK manually.
+**Cause:** Interactive M365 sign-in (MSAL) requires a desktop session. This happens when running under SYSTEM/RMM or a non-interactive service.
+
+**Fix:** Run the interactive wizard (`.\Run-Migration.ps1`) once from a logged-in desktop session to sign in, or use a service principal / certificate auth for fully unattended runs.
 
 ---
 
-## 4. "ProjectId is required" / "ProjectId has an invalid format"
+## 6. "TargetDeliveryDomain is not an accepted domain"
 
-**Cause:** The bootstrap script requires an **existing** GCP project ID. It never creates one.
+**Cause:** The routing domain isn't verified/Active in Exchange Online, or you used the tenant's `onmicrosoft.com` domain (which is blocked).
 
-**Fix:** Provide a valid project ID:
-```powershell
-.\Run-Bootstrap.ps1 -Mode Inspect -ProjectId my-gcp-project
-```
-
----
-
-## 5. "Key creation requires -ApproveKeyCreation"
-
-**Cause:** The bootstrap script never creates keys without explicit approval.
-
-**Fix:** Add the approval flag only when you're ready:
-```powershell
-.\Run-Bootstrap.ps1 -Mode CreateServiceAccountKey -ProjectId <project> -ApproveKeyCreation
-```
+**Fix:**
+- Add and verify the `o365.<yourdomain>` subdomain in Microsoft 365 (must show **Active**)
+- In interactive mode, the script shows a **picker of accepted domains** and applies your choice immediately
+- Never use `tenant.onmicrosoft.com`
 
 ---
 
-## 6. "Google prerequisites were not explicitly acknowledged"
-
-**Cause:** The migration controller requires you to confirm that routing, domain-wide delegation, API access, and MailUser provisioning are complete.
-
-**Fix:** Add `-ApproveGooglePrerequisites` only after verifying all prerequisites.
-
----
-
-## 7. "TargetDeliveryDomain is not an accepted domain"
-
-**Cause:** The routing domain isn't verified in Exchange Online, or you used the tenant's `onmicrosoft.com` domain (which is blocked).
-
-**Fix:** Use a verified Google Workspace routing subdomain (e.g., `o365.contoso.com`), not `tenant.onmicrosoft.com`.
-
----
-
-## 8. "Recipient is not MailUser"
+## 7. "Recipient is not MailUser"
 
 **Cause:** Migration targets must be provisioned as **MailUsers**, not mailboxes.
 
-**Fix:**
+**Fix:** The script can **auto-provision missing MailUsers** from your CSV. To provision manually:
 ```powershell
-New-MailUser -Name "John Doe" -ExternalEmailAddress "john.doe@gsuite.com" -PrimarySmtpAddress "john.doe@contoso.com"
+New-MailUser -Name "John Doe" -ExternalEmailAddress "john.doe@gsuite.contoso.com" -PrimarySmtpAddress "john.doe@contoso.com"
+```
+Accounts that would need a password are skipped and listed in the `noAccount` report rather than guessed.
+
+---
+
+## 8. "Batch status is not Synced"
+
+**Cause:** You tried to complete a batch that hasn't reached **Synced** status.
+
+**Fix:** Monitor until the batch is `Synced`, review statistics, then complete:
+```powershell
+.\Run-Migration.ps1 -Mode Monitor -CollectUserStatistics
+.\Run-Migration.ps1 -Mode Complete -ApproveCutover
 ```
 
 ---
 
-## 9. "Batch status is not Synced"
-
-**Cause:** You tried to complete a batch that hasn't reached **Synced** status.
-
-**Fix:** Monitor until the batch is `Synced`, review statistics, then complete.
-
----
-
-## 10. "Blocking findings exist"
+## 9. "Blocking findings exist"
 
 **Cause:** The script found Critical or High findings and halted to prevent unsafe action.
 
-**Fix:** Review the report (`MigrationPreflightFindings.csv` / `GoogleCloudBootstrapFindings.csv`), resolve the blocking findings, and rerun.
+**Fix:** Review the findings report (written to the output folder), resolve the blocking findings, and rerun. Run `-Mode Preflight` to re-validate after fixing.
 
 ---
 
-## 11. Launcher says "Script not found"
+## 10. "Key file not found" / auto-discovery failed
+
+**Cause:** No `-KeyPath` was supplied and no service-account JSON key was found in Downloads, Desktop, or the current folder.
+
+**Fix:** Pass the path explicitly:
+```powershell
+.\Run-Migration.ps1 -Mode Preflight -KeyPath C:\keys\gws.json ...
+```
+
+---
+
+## 11. CSV not found / "CSV is empty or truncated"
+
+**Cause:** No `-CsvPath` was supplied and no `migration-users.csv` was found in the current folder, `examples/`, `config/`, Downloads, or Documents. Or the file is empty/truncated (the script rejects files under 3 bytes and files with a UTF-8 BOM).
+
+**Fix:** Pass the path explicitly and save the CSV as plain UTF-8 (no BOM):
+```powershell
+.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv ...
+```
+
+---
+
+## 12. Launcher says "Script not found"
 
 **Cause:** The launcher couldn't find the target script in the `scripts/` folder.
 

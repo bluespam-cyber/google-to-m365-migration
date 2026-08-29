@@ -1,6 +1,6 @@
-# Google Workspace → Microsoft 365 Migration Toolkit
+# Google Workspace → Microsoft 365 Migration
 
-Controlled, enterprise-safe migration of **Gmail, Calendar, and Contacts** from Google Workspace to Microsoft 365 using PowerShell, Google Cloud SDK, and Exchange Online migration endpoints.
+Controlled, enterprise-safe migration of **Gmail, Calendar, and Contacts** from Google Workspace to Microsoft 365 — a single PowerShell script, **no Google Cloud SDK, no gcloud, no command-line tools required**.
 
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue) ![License](https://img.shields.io/badge/License-MIT-green) ![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey)
 
@@ -19,161 +19,204 @@ https://github.com/bluespam-cyber/google-to-m365-migration/archive/refs/heads/ma
 
 ### Option B — Download just the scripts you need
 
-| Script | Direct download |
+| File | Direct download |
 |---|---|
-| **Google Cloud prep** (bootstrap) | [GoogleCloudMigrationBootstrap.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/scripts/GoogleCloudMigrationBootstrap.ps1) |
 | **Migration controller** | [GoogleToM365Migration.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/scripts/GoogleToM365Migration.ps1) |
-| **Launcher — bootstrap** | [Run-Bootstrap.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/Run-Bootstrap.ps1) |
-| **Launcher — migration** | [Run-Migration.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/Run-Migration.ps1) |
+| **Launcher** | [Run-Migration.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/Run-Migration.ps1) |
 | **Sample CSV** | [migration-users.csv](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/examples/migration-users.csv) |
 
-> **Tip:** Download the launcher + its matching script into the **same folder** — the launcher auto-finds the script, so you can run it from anywhere.
+> **Tip:** Download the launcher + the script into the **same folder** — the launcher auto-finds the script, so you can run it from anywhere.
 
 ---
 
-## 🚀 Run the scripts
+## 🚀 Quick Start
 
-### ✨ Fully interactive (recommended) — just run it
+### ✨ Interactive wizard (recommended) — just run it
 
-Run with **no arguments** and the script walks you through everything. It **auto-detects** what it can and **asks only for what it can't**:
-
-- **Bootstrap** auto-detects: gcloud, your active Google account, GCP projects, existing service accounts
-- **Migration** auto-detects: your CSV and your service-account key; asks only for your Google admin email and routing domain
+Run with **no arguments** and the script walks you through everything. It auto-detects what it can (CSV, service-account key, Exchange connection, accepted domains) and asks only for what it can't:
 
 ```powershell
-# Google Cloud prep — interactive menu (pick a mode, answer only what's needed)
-.\Run-Bootstrap.ps1
-
-# Migration — interactive menu (auto-finds CSV + key, asks only for admin email & routing domain)
 .\Run-Migration.ps1
 ```
 
-> **What it will ask you:** only the things it genuinely cannot discover — e.g. your GCP project ID (if you have several), your Google admin email (if gcloud isn't signed in), your routing domain (if Exchange can't be reached), and a **Y/n** confirmation before any mutating step. Everything else is found automatically.
+The wizard offers a numbered menu of the modes below, pre-fills values it discovered, and asks a **Y/n** confirmation before any mutating step.
 
-### Explicit mode (for automation / RMM)
+### 📖 Guide mode — the 5-minute Google setup
 
-Every mode can also be called directly with parameters — perfect for scheduled or unattended runs:
-
-### Google Cloud prep (bootstrap)
+Before anything else, run the built-in guide. It prints the exact Google Cloud console steps (two browser tabs, ~5 minutes) and the Microsoft 365 prerequisites:
 
 ```powershell
-# 1. Inspect your Google Cloud environment (read-only, safe first step)
-.\Run-Bootstrap.ps1 -Mode Inspect
-
-# 2. Install the Google Cloud SDK (opens official installer)
-.\Run-Bootstrap.ps1 -Mode InstallSdk
-
-# 3. Enable required APIs (needs approval + existing project)
-.\Run-Bootstrap.ps1 -Mode EnableApis -ProjectId <your-project> -ApproveApiEnablement
-
-# 4. Create the service account
-.\Run-Bootstrap.ps1 -Mode CreateServiceAccount -ProjectId <your-project>
-
-# 5. Create a JSON key (needs approval)
-.\Run-Bootstrap.ps1 -Mode CreateServiceAccountKey -ProjectId <your-project> -ApproveKeyCreation
+.\Run-Migration.ps1 -Mode Guide
 ```
 
-### Migration (controller)
+### 🧪 Preflight — read-only health check
 
 ```powershell
-# 1. Preflight (read-only) — validate CSV, routing, recipients, Google connectivity
-.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -TargetDeliveryDomain o365.contoso.com
-
-# 2. Create the Gmail migration endpoint
-.\Run-Migration.ps1 -Mode CreateEndpoint -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -ApproveGooglePrerequisites
-
-# 3. Create the migration batch (does NOT auto-start)
-.\Run-Migration.ps1 -Mode CreateBatch -CsvPath .\examples\migration-users.csv -TargetDeliveryDomain o365.contoso.com -ApproveGooglePrerequisites
-
-# 4. Start the batch
-.\Run-Migration.ps1 -Mode StartBatch -ApproveGooglePrerequisites
-
-# 5. Monitor progress
-.\Run-Migration.ps1 -Mode Monitor -CollectUserStatistics
-
-# 6. Complete the batch (cutover) — only after Synced
-.\Run-Migration.ps1 -Mode CompleteBatch -ApproveCutover -ApproveGooglePrerequisites
+.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -KeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -TargetDeliveryDomain o365.contoso.com
 ```
 
-> **How auto-location works:** each launcher uses `$PSScriptRoot` to locate the `scripts/` folder relative to itself, then passes all your arguments through unchanged. Keep the launcher and its matching script in the same folder.
->
-> **Unattended runs:** add `-NonInteractive` to fail fast with a report instead of prompting (for RMM/SYSTEM).
+Review the findings report. Resolve every **Critical** and **High** finding before proceeding.
 
 ---
 
-## 📖 Overview
+## 📋 Modes
 
-This toolkit is split into **two controlled scripts** that default to **read-only** and never take destructive action without explicit approval:
-
-| Script | Purpose | Default Mode |
+| Mode | Description | Read-Only? |
 |---|---|---|
-| `Run-Bootstrap.ps1` → `GoogleCloudMigrationBootstrap.ps1` | Safe Google Cloud preparation | `Inspect` (read-only) |
-| `Run-Migration.ps1` → `GoogleToM365Migration.ps1` | Exchange Online migration controller | `Preflight` (read-only) |
+| `Guide` | Prints the Google Cloud + M365 setup steps | ✅ Yes |
+| `Preflight` | Validates CSV, routing domain, recipients, Google connectivity | ✅ Yes |
+| `CreateEndpoint` | Creates the Gmail migration endpoint (shreds the key afterwards) | ❌ Mutation |
+| `CreateBatch` | Creates the migration batch (**never auto-starts it**) | ❌ Mutation |
+| `StartBatch` | Starts an existing batch | ❌ Mutation |
+| `Monitor` | Monitors batch progress, optional per-user statistics | ✅ Yes |
+| `Complete` | Completes the batch (cutover) | ❌ Requires `-ApproveCutover` |
+| `Run` | End-to-end: endpoint → batch → start in one session | ❌ Mutation |
 
-### Safety-first design
-- **Never** auto-creates a GCP project or service-account key without explicit `-Approve*` flags
-- **Never** runs browser authentication automatically
-- Auto-detected values (project, CSV, key, admin email, routing domain) are always shown and confirmed before use
-- Every mutation requires `ShouldProcess` confirmation (or an interactive **Y/n** prompt)
-- Blocking findings halt further action
+> **Default mode is `Preflight`** — running the script with parameters but no `-Mode` is always read-only.
+
+---
+
+## ⚙️ Parameters
+
+| Parameter | Type | Default | Purpose |
+|---|---|---|---|
+| `-Mode` | string | `Preflight` | One of: `Guide`, `Preflight`, `CreateEndpoint`, `CreateBatch`, `StartBatch`, `Monitor`, `Complete`, `Run` |
+| `-KeyPath` | string | — | Path to the Google service-account JSON key (auto-discovered in Downloads/Desktop/cwd if omitted) |
+| `-GoogleAdminEmail` | string | — | Google Workspace **Super Admin** email (required for delegation) |
+| `-CsvPath` | string | — | Migration CSV (auto-discovered as `migration-users.csv` if omitted) |
+| `-TargetDeliveryDomain` | string | — | Verified M365 routing subdomain, e.g. `o365.contoso.com` (**never** `tenant.onmicrosoft.com`) |
+| `-EndpointName` | string | `GoogleWorkspaceEndpoint` | Name of the Gmail migration endpoint |
+| `-BatchName` | string | `GoogleWorkspaceMigration` | Name of the migration batch |
+| `-MonitorIntervalSeconds` | int | `60` | Poll interval for `Monitor` (15–3600) |
+| `-MaxMonitorMinutes` | int | `60` | Max monitor duration (1–1440) |
+| `-OutputRoot` | string | — | Where reports/state are written (default: current folder) |
+| `-DelegationTestCount` | int | `3` | How many users to test delegation against (0–500) |
+| `-ApproveCutover` | switch | off | Explicit approval required for `Complete` |
+| `-KeepKeyFile` | switch | off | Keep the key file after use (default: securely shredded) |
+| `-SkipGoogleTest` | switch | off | Skip the live Google delegation test |
+| `-NonInteractive` | switch | off | Fail fast with a report instead of prompting (RMM/SYSTEM) |
+
+---
+
+## ☁️ Google Cloud Setup (one-time, ~5 minutes)
+
+The script does **not** create projects, service accounts, or keys — you do this once in the Google Cloud console, then the script handles everything else. Run `-Mode Guide` to see these steps printed.
+
+1. **Create a project** — [console.cloud.google.com](https://console.cloud.google.com) → project picker → **New Project**. Name it anything (e.g. `M365 Migration`). Note the **Project ID**.
+2. **Enable these four APIs** — [console.cloud.google.com/apis/library](https://console.cloud.google.com/apis/library) → search each → **Enable**:
+   - Gmail API
+   - Google Calendar API
+   - Contacts API *(easy to miss — contact migration fails without it)*
+   - People API
+3. **Create a service account** — [console.cloud.google.com/iam-admin/serviceaccounts](https://console.cloud.google.com/iam-admin/serviceaccounts) → **Create service account** → name it, skip optional roles, **Done**.
+4. **Create a JSON key** — open the service account → **Keys** tab → **Add key** → **Create new key** → **JSON**. The downloaded file is your `-KeyPath`. It is a password-equivalent secret — **this script deletes it after use**.
+5. **Copy the NUMERIC Client ID** — on the service account **Details** tab, copy the **Unique ID** (a long number; also the `client_id` field inside the JSON key). Using the service account *email* here is the single most common mistake.
+6. **Authorize domain-wide delegation** — [admin.google.com](https://admin.google.com) → **Security** → **Access and data control** → **API controls** → **Manage Domain Wide Delegation** → **Add new**:
+   - **Client ID:** the numeric ID from step 5
+   - **OAuth scopes:** paste this entire line, exactly, no spaces:
+     ```
+     https://mail.google.com/,https://www.googleapis.com/auth/calendar,https://www.google.com/m8/feeds/,https://www.googleapis.com/auth/gmail.settings.sharing,https://www.googleapis.com/auth/contacts
+     ```
+   - All five scopes are required. An extra or missing scope breaks the match and the migration fails **after** the batch starts. Propagation takes minutes, occasionally up to 24 hours.
+
+---
+
+## 🏢 Microsoft 365 Prerequisites
+
+1. **Routing subdomains** (both verified and Active):
+   - `o365.<yourdomain>` — added in Google Admin as a **User alias domain**, MX pointing to Microsoft 365, accepted in M365. This is your `-TargetDeliveryDomain`.
+   - `gsuite.<yourdomain>` — added in Google Admin as a **User alias domain**, MX pointing to Google. This is where MailUser `ExternalEmailAddress` values point.
+   - **Do NOT use `tenant.onmicrosoft.com`** as the target delivery domain.
+2. **Every user provisioned as a MailUser** (not a mailbox) before the batch is created:
+   ```powershell
+   New-MailUser -Name "Will" -ExternalEmailAddress will@gsuite.contoso.com -PrimarySmtpAddress will@contoso.com
+   ```
+   `ExternalEmailAddress` must point at the **Google** routing domain; each user also needs a proxy address at the **M365** routing domain. The script can auto-provision missing MailUsers from your CSV (see below).
+3. **Disable MRM and archive policies** until migration completes — otherwise items are flagged "missing", which is very hard to separate from real loss during verification.
+4. **Automatic Forwarding enabled** on the Remote Domain (Exchange Online default).
+
+---
+
+## 📄 CSV Format
+
+Two columns:
+
+| Column | Meaning |
+|---|---|
+| `EmailAddress` | The Microsoft 365 target email address |
+| `Username` | The source Google Workspace address (optional — defaults to `EmailAddress` if omitted) |
+
+```csv
+EmailAddress,Username
+john.doe@contoso.com,john.doe@gsuite.contoso.com
+jane.smith@contoso.com,jane.smith@gsuite.contoso.com
+```
+
+See `examples/migration-users.csv` for a sample. The script auto-detects a file named `migration-users.csv` in the current folder, `examples/`, `config/`, your Downloads, or Documents.
+
+---
+
+## 🛡️ Safety-First Design
+
+- **Defaults to read-only** — `Preflight` is the default mode; every mutation is an explicit mode choice
+- **Never auto-starts a batch** — `CreateBatch` creates it for review; `StartBatch` is a separate explicit step
+- **Never selects a routing domain automatically** — if the target isn't an accepted domain, the interactive picker shows candidates and applies your choice immediately
+- **Key is shredded after use** — overwritten and deleted in a `finally` block unless `-KeepKeyFile`
+- **Cutover requires `-ApproveCutover`** — completing the batch is never implicit
+- **Blocking findings halt further action** — Critical/High findings stop the run with a report
+- **Resume state** — progress is saved to `GoogleM365Migration\last-run.json` so interrupted runs can continue
+- **Delegation wait & retry** — waits up to 30 minutes for domain-wide delegation to propagate, retrying only on `unauthorized_client`/`access_denied` with backoff
+- **Auto-provisions missing MailUsers** — accounts that need a password are skipped and listed in `noAccount` rather than guessed
 
 ---
 
 ## 🧰 What's Included
 
-| File | Description |
-|---|---|
-| `Run-Bootstrap.ps1` | **Auto-locating launcher** for the Google Cloud bootstrap script |
-| `Run-Migration.ps1` | **Auto-locating launcher** for the migration controller |
-| `scripts/GoogleCloudMigrationBootstrap.ps1` | Google Cloud prep: inspect, SDK, APIs, service account, keys |
-| `scripts/GoogleToM365Migration.ps1` | Migration controller: preflight, endpoint, batch, monitor, complete |
-| `docs/SETUP-GUIDE.md` | Step-by-step setup guide with prerequisites |
-| `docs/TROUBLESHOOTING.md` | Common errors and fixes |
-| `examples/migration-users.csv` | Sample CSV format for user mapping |
-| `config/.env.example` | Environment variable template |
+```
+google-to-m365-migration/
+├── Run-Migration.ps1                  # Auto-locating launcher → migration controller
+├── scripts/
+│   └── GoogleToM365Migration.ps1      # The entire migration controller (all 8 modes)
+├── docs/
+│   ├── SETUP-GUIDE.md                 # Step-by-step setup
+│   └── TROUBLESHOOTING.md             # Common errors & fixes
+├── examples/
+│   └── migration-users.csv            # Sample CSV format
+├── config/
+│   └── .env.example                   # Parameter reference sheet
+└── LICENSE
+```
 
 ---
 
-## 🔧 Prerequisites
+## 🤖 Automation / Unattended Runs
 
-### Microsoft 365
-- **Exchange Online** admin access (Global Admin or Exchange Administrator role)
-- **PowerShell 5.1+** on Windows
-- Internet access to `login.microsoftonline.com` and `outlook.office365.com`
+Every mode can be called directly with parameters — perfect for scheduled or RMM runs:
 
-### Google Workspace
-- **Google Workspace Super Admin** account
-- **Google Cloud** account (free tier works)
-- Ability to authorize **Domain-Wide Delegation** in Google Admin Console
-- A **service-account JSON key** stored in an approved secure location
+```powershell
+# 1. Preflight (read-only) — validate CSV, routing, recipients, Google connectivity
+.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -KeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -TargetDeliveryDomain o365.contoso.com
 
----
+# 2. Create the Gmail migration endpoint (key is shredded afterwards)
+.\Run-Migration.ps1 -Mode CreateEndpoint -KeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com
 
-## 📋 Bootstrap Modes
+# 3. Create the migration batch (does NOT auto-start)
+.\Run-Migration.ps1 -Mode CreateBatch -CsvPath .\examples\migration-users.csv -TargetDeliveryDomain o365.contoso.com
 
-| Mode | Description | Read-Only? |
-|---|---|---|
-| `Inspect` | Inspect gcloud, active account, project, service account | ✅ Yes |
-| `InstallSdk` | Open official Google Cloud SDK installer | ⚠️ Opens browser |
-| `EnableApis` | Enable Gmail, Calendar, People, Admin APIs | ❌ Requires `-ApproveApiEnablement` |
-| `CreateServiceAccount` | Create the migration service account | ❌ Requires approval |
-| `CreateServiceAccountKey` | Create a JSON private key | ❌ Requires `-ApproveKeyCreation` |
-| `ListKeys` | List user-managed keys | ✅ Yes |
-| `DisableKey` | Disable a service-account key | ❌ Requires `-ApproveKeyDisable` |
+# 4. Start the batch
+.\Run-Migration.ps1 -Mode StartBatch
 
----
+# 5. Monitor progress
+.\Run-Migration.ps1 -Mode Monitor -CollectUserStatistics
 
-## 📋 Migration Modes
+# 6. Complete the batch (cutover) — only after Synced
+.\Run-Migration.ps1 -Mode Complete -ApproveCutover
 
-| Mode | Description | Read-Only? |
-|---|---|---|
-| `Preflight` | Validate CSV, routing domain, recipients, Google connectivity | ✅ Yes |
-| `CreateEndpoint` | Create the Gmail migration endpoint | ❌ Requires `-ApproveGooglePrerequisites` |
-| `CreateBatch` | Create a migration batch (no auto-start) | ❌ Requires `-ApproveGooglePrerequisites` |
-| `StartBatch` | Start an existing batch | ❌ Requires `-ApproveGooglePrerequisites` |
-| `Monitor` | Monitor batch progress with optional per-user stats | ✅ Yes |
-| `CompleteBatch` | Complete the batch (cutover) | ❌ Requires `-ApproveCutover` |
-| `Report` | Generate a report without connecting | ✅ Yes |
+# Or do steps 2-4 in one session:
+.\Run-Migration.ps1 -Mode Run -CsvPath .\examples\migration-users.csv -KeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -TargetDeliveryDomain o365.contoso.com
+```
+
+> **Unattended runs:** add `-NonInteractive` to fail fast with a report instead of prompting (for RMM/SYSTEM). The ExchangeOnlineManagement module is auto-installed if missing (TLS 1.2, NuGet, PSGallery restore, three strategies).
 
 ---
 
