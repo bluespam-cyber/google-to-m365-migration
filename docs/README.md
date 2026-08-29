@@ -1,30 +1,35 @@
 # Google to M365 Migration Toolkit
 
-Automated Google Workspace → Microsoft 365 email migration.
+Controlled, enterprise-safe migration of **Gmail, Calendar, and Contacts** from Google Workspace to Microsoft 365.
 
-## Quick Start
+## Quick Start (auto-locating launchers)
+
+The launchers automatically find the scripts — run them from any directory.
 
 ```powershell
-# No-touch script (auto-installs everything)
-& "$HOME\Downloads\NoTouchGoogleToM365Migration.ps1"
+# Inspect your Google Cloud environment (read-only)
+.\Run-Bootstrap.ps1 -Mode Inspect
 
-# Or interactive script (4 user-mapping modes)
-& "$HOME\Downloads\AutoGoogleToM365Migration.ps1"
+# Run a read-only migration preflight
+.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -SkipExchangeConnection
 ```
 
 ## Structure
 
 ```
+google-to-m365-migration/
+├── Run-Bootstrap.ps1                  # Auto-locating launcher → Google Cloud prep
+├── Run-Migration.ps1                  # Auto-locating launcher → migration controller
 ├── scripts/
-│   ├── NoTouchGoogleToM365Migration.ps1   # Full auto-deploy + migrate
-│   └── AutoGoogleToM365Migration.ps1      # Interactive with 4 mapping modes
+│   ├── GoogleCloudMigrationBootstrap.ps1   # Inspect, SDK, APIs, service account, keys
+│   └── GoogleToM365Migration.ps1           # Preflight, endpoint, batch, monitor, complete
 ├── docs/
-│   ├── SETUP-GUIDE.md                     # Step-by-step setup
-│   └── TROUBLESHOOTING.md                 # Common errors & fixes
+│   ├── SETUP-GUIDE.md                 # Step-by-step setup
+│   └── TROUBLESHOOTING.md             # Common errors & fixes
 ├── examples/
-│   └── migration-users.csv                # Sample CSV format
+│   └── migration-users.csv            # Sample CSV format
 ├── config/
-│   └── .env.example                       # Environment variables template
+│   └── .env.example                   # Environment variables template
 └── LICENSE
 ```
 
