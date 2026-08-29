@@ -6,19 +6,77 @@ Controlled, enterprise-safe migration of **Gmail, Calendar, and Contacts** from 
 
 ---
 
-## 🚀 Quick Start (auto-locating launchers)
+## ⬇️ Download & Run (2 minutes)
 
-The launchers **automatically find the scripts** — you can run them from any directory without `cd`-ing into the repo or typing full paths.
+### Option A — Download the whole repo (recommended)
+
+Click the green **Code** button above, then **Download ZIP**. Extract and open a PowerShell window in the folder.
+
+**Or download the ZIP directly:**
+```
+https://github.com/bluespam-cyber/google-to-m365-migration/archive/refs/heads/main.zip
+```
+
+### Option B — Download just the scripts you need
+
+| Script | Direct download |
+|---|---|
+| **Google Cloud prep** (bootstrap) | [GoogleCloudMigrationBootstrap.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/scripts/GoogleCloudMigrationBootstrap.ps1) |
+| **Migration controller** | [GoogleToM365Migration.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/scripts/GoogleToM365Migration.ps1) |
+| **Launcher — bootstrap** | [Run-Bootstrap.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/Run-Bootstrap.ps1) |
+| **Launcher — migration** | [Run-Migration.ps1](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/Run-Migration.ps1) |
+| **Sample CSV** | [migration-users.csv](https://raw.githubusercontent.com/bluespam-cyber/google-to-m365-migration/main/examples/migration-users.csv) |
+
+> **Tip:** Download the launcher + its matching script into the **same folder** — the launcher auto-finds the script, so you can run it from anywhere.
+
+---
+
+## 🚀 Run the scripts
+
+The launchers **automatically find the scripts** — no `cd` needed, no full paths. Just run them from the folder where you saved them.
+
+### Google Cloud prep (bootstrap)
 
 ```powershell
 # 1. Inspect your Google Cloud environment (read-only, safe first step)
 .\Run-Bootstrap.ps1 -Mode Inspect
 
-# 2. Run a read-only migration preflight
-.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -SkipExchangeConnection
+# 2. Install the Google Cloud SDK (opens official installer)
+.\Run-Bootstrap.ps1 -Mode InstallSdk
+
+# 3. Enable required APIs (needs approval + existing project)
+.\Run-Bootstrap.ps1 -Mode EnableApis -ProjectId <your-project> -ApproveApiEnablement
+
+# 4. Create the service account
+.\Run-Bootstrap.ps1 -Mode CreateServiceAccount -ProjectId <your-project>
+
+# 5. Create a JSON key (needs approval)
+.\Run-Bootstrap.ps1 -Mode CreateServiceAccountKey -ProjectId <your-project> -ApproveKeyCreation
 ```
 
-> **How auto-location works:** each launcher uses `$PSScriptRoot` to locate the `scripts/` folder relative to itself, then passes all your arguments through unchanged. Run them from the repo root, or from anywhere via the full path.
+### Migration (controller)
+
+```powershell
+# 1. Preflight (read-only) — validate CSV, routing, recipients, Google connectivity
+.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -TargetDeliveryDomain o365.contoso.com
+
+# 2. Create the Gmail migration endpoint
+.\Run-Migration.ps1 -Mode CreateEndpoint -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -ApproveGooglePrerequisites
+
+# 3. Create the migration batch (does NOT auto-start)
+.\Run-Migration.ps1 -Mode CreateBatch -CsvPath .\examples\migration-users.csv -TargetDeliveryDomain o365.contoso.com -ApproveGooglePrerequisites
+
+# 4. Start the batch
+.\Run-Migration.ps1 -Mode StartBatch -ApproveGooglePrerequisites
+
+# 5. Monitor progress
+.\Run-Migration.ps1 -Mode Monitor -CollectUserStatistics
+
+# 6. Complete the batch (cutover) — only after Synced
+.\Run-Migration.ps1 -Mode CompleteBatch -ApproveCutover -ApproveGooglePrerequisites
+```
+
+> **How auto-location works:** each launcher uses `$PSScriptRoot` to locate the `scripts/` folder relative to itself, then passes all your arguments through unchanged. Keep the launcher and its matching script in the same folder.
 
 ---
 
@@ -70,53 +128,6 @@ This toolkit is split into **two controlled scripts** that default to **read-onl
 
 ---
 
-## 🗺️ Recommended Workflow
-
-### Phase 1 — Google Cloud preparation (bootstrap)
-
-```powershell
-# Inspect (read-only) — see what's present
-.\Run-Bootstrap.ps1 -Mode Inspect
-
-# Install the Google Cloud SDK (opens official installer)
-.\Run-Bootstrap.ps1 -Mode InstallSdk
-
-# Enable required APIs (requires approval + existing project)
-.\Run-Bootstrap.ps1 -Mode EnableApis -ProjectId <your-project> -ApproveApiEnablement
-
-# Create the service account (requires approval)
-.\Run-Bootstrap.ps1 -Mode CreateServiceAccount -ProjectId <your-project>
-
-# Create a JSON key (requires approval)
-.\Run-Bootstrap.ps1 -Mode CreateServiceAccountKey -ProjectId <your-project> -ApproveKeyCreation
-```
-
-> ⚠️ After creating the service account, complete the **manual domain-wide delegation** step in Google Admin Console using the numeric Client ID the script displays.
-
-### Phase 2 — Migration (controller)
-
-```powershell
-# Preflight (read-only) — validate CSV, routing, recipients, Google connectivity
-.\Run-Migration.ps1 -Mode Preflight -CsvPath .\examples\migration-users.csv -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -TargetDeliveryDomain o365.contoso.com
-
-# Create the Gmail migration endpoint
-.\Run-Migration.ps1 -Mode CreateEndpoint -ServiceAccountKeyPath C:\keys\gws.json -GoogleAdminEmail admin@contoso.com -ApproveGooglePrerequisites
-
-# Create the migration batch (does NOT auto-start)
-.\Run-Migration.ps1 -Mode CreateBatch -CsvPath .\examples\migration-users.csv -TargetDeliveryDomain o365.contoso.com -ApproveGooglePrerequisites
-
-# Start the batch
-.\Run-Migration.ps1 -Mode StartBatch -ApproveGooglePrerequisites
-
-# Monitor progress
-.\Run-Migration.ps1 -Mode Monitor -CollectUserStatistics
-
-# Complete the batch (cutover) — only after Synced
-.\Run-Migration.ps1 -Mode CompleteBatch -ApproveCutover -ApproveGooglePrerequisites
-```
-
----
-
 ## 📋 Bootstrap Modes
 
 | Mode | Description | Read-Only? |
@@ -151,7 +162,7 @@ MIT License — see [LICENSE](LICENSE)
 
 ## 👤 Author
 
-**Arwaz Khan** — [arwazitbp2003@gmail.com](mailto:arwazitbp2003@gmail.com)
+**Arwaz Khan**
 
 ---
 
